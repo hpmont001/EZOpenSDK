@@ -2,7 +2,7 @@
 
 <resources>
     <string name="cameras_txt">我的</string>
-    <string name="app_name"> 透明云直播</string>
+    <string name="app_name"> 透明云监控</string>
     <string name="exit">确定退出</string>
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="tab1">任务</string>

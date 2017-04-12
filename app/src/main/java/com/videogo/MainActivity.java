@@ -1,7 +1,10 @@
 package com.videogo;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.os.Parcelable;
 import android.support.v4.media.MediaBrowserServiceCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -18,10 +21,11 @@ import com.google.gson.reflect.TypeToken;
 import com.videogo.base.EzvizApplication;
 import com.videogo.http.accTokenBean;
 import com.videogo.http.cameraListBean;
+import com.videogo.http.chosesUserBean;
 import com.videogo.http.reqAccTokenBean;
 import com.videogo.http.reqCameraListBean;
 import com.videogo.http.timeBean;
-import com.videogo.http.userId;
+import com.videogo.http.userIdBean;
 import com.videogo.http.userLoginBean;
 import com.videogo.openapi.EZOpenSDK;
 import com.videogo.scan.main.Contents;
@@ -32,6 +36,7 @@ import org.xutils.common.Callback;
 import org.xutils.http.RequestParams;
 import org.xutils.x;
 
+import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.util.List;
 
@@ -54,13 +59,22 @@ public class MainActivity extends Activity {
     private Gson gson;
     private EditText usernameEt, passwordEt;
     private Button loginBtn;
-
+    private List<chosesUserBean.deviceInfo> InfoList;
+    private SharedPreferences sharedPrefs;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         x.view().inject(this);
         gson = new Gson();
+        sharedPrefs = getSharedPreferences("EZShare", Context.MODE_PRIVATE);
+        if(!sharedPrefs.getString("UserId","USER_ACCOUNT").equals("USER_ACCOUNT")){
+            Intent toIntent = new Intent(MainActivity.this, EZCameraListActivity.class);
+            toIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+//                    toIntent.putExtra("deviceInfoList", (Serializable) InfoList);
+            MainActivity.this.startActivity(toIntent);
+        }
+
         usernameEt =(EditText)findViewById(R.id.et_acc);
         passwordEt =(EditText)findViewById(R.id.et_password);
         loginBtn = (Button)findViewById(R.id.btn_login);
@@ -71,9 +85,12 @@ public class MainActivity extends Activity {
 //                if(cameraList.size()>0){
                 //获取透明云账号验证
                     Login(usernameEt.getText(),passwordEt.getText());
+
                     Intent toIntent = new Intent(MainActivity.this, EZCameraListActivity.class);
                     toIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+//                    toIntent.putExtra("deviceInfoList", (Serializable) InfoList);
                     MainActivity.this.startActivity(toIntent);
+
 //                }
 //                else {
 //                    Toast.makeText(MainActivity.this,"密码错误",Toast.LENGTH_LONG).show();
@@ -257,7 +274,9 @@ public class MainActivity extends Activity {
                 java.lang.reflect.Type  Type =new TypeToken<userLoginBean>() {}.getType();
                 userLoginBean relt = gson.fromJson(result,Type);
                 if(relt.getResult().equals("Yes")){
-                 getMonitor(relt.getUserId());
+                    SharedPreferences.Editor editor = sharedPrefs.edit();
+                    editor.putString("UserId", relt.getUserId());
+                    editor.commit();
 
                 }
                 Log.i(TAG,"hasCameraList_cameraList="+cameraList);
@@ -280,49 +299,6 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void getMonitor(String UserId) {
-//        RequestParams requestparams = new RequestParams(URL);
-        RequestParams requestparams = new RequestParams("http://182.92.173.223:8082/api/Monitor");
-//        requestparams.addParameter("UserName", usernameEtText.toString());
-//        requestparams.addParameter("Password",passwordEtText.toString());
-//        requestparams.addParameter("Md5", "0");passwordEtText.toString()
-//        requestparams.addParameter("LoginTime","0");
-        userId bean = new userId(UserId);
-        String RequestStr = gson.toJson(bean);
-        Log.i(TAG,"Login_tmy_RequestStr:"+RequestStr);
-//        requestparams.addParameter("aaa", RequestStr);
-        requestparams.setAsJsonContent(true);
-        requestparams.setBodyContent(RequestStr);
-//        requestparams.setCharset("UTF-8");
-        Log.i(TAG,"Login_tmy_requestparams:"+requestparams);
-        x.http().post(requestparams, new Callback.CommonCallback<String>() {
-            @Override
-            public void onSuccess(String result) {
-                Log.i(TAG,"Login_tmy_result:"+result);
-//                java.lang.reflect.Type  Type =new TypeToken<userLoginBean>() {}.getType();
-//                userLoginBean relt = gson.fromJson(result,Type);
-//                if(relt.getResult().equals("Yes")){
-//                    getMonitor(relt.getUserId());
-//
-//                }
-//                Log.i(TAG,"hasCameraList_cameraList="+cameraList);
-            }
 
-            @Override
-            public void onError(Throwable ex, boolean isOnCallback) {
-
-            }
-
-            @Override
-            public void onCancelled(CancelledException cex) {
-
-            }
-
-            @Override
-            public void onFinished() {
-
-            }
-        });
-    }
 
 }

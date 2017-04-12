@@ -1,6 +1,7 @@
 package com.videogo.ui.devicelist;
 
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.wifi.WifiInfo;
@@ -162,7 +163,8 @@ public class AutoWifiNetConfigActivity extends RootActivity implements OnClickLi
         }
         tvSSID.setText(BaseUtil.getWifiSSID(this));
 
-        WifiManager mWifiManager = (WifiManager) getSystemService(WIFI_SERVICE);
+//        WifiManager mWifiManager = (WifiManager) getSystemService(WIFI_SERVICE);
+        WifiManager mWifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         // 取得WifiInfo对象
         WifiInfo mWifiInfo = mWifiManager.getConnectionInfo();
         // 路由器的mac地址

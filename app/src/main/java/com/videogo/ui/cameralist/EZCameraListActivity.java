@@ -23,6 +23,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
@@ -42,12 +43,17 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import com.videogo.constant.Constant;
 import com.videogo.constant.IntentConsts;
 import com.videogo.devicemgt.EZDeviceSettingActivity;
 import com.videogo.errorlayer.ErrorInfo;
 import com.videogo.exception.BaseException;
 import com.videogo.exception.ErrorCode;
+import com.videogo.http.chosesUserBean;
+import com.videogo.http.userIdBean;
 import com.videogo.openapi.EZOpenSDKListener;
 import com.videogo.openapi.bean.EZCameraInfo;
 import com.videogo.openapi.bean.EZDeviceInfo;
@@ -75,10 +81,15 @@ import com.videogo.widget.pulltorefresh.PullToRefreshBase.LoadingLayoutCreator;
 import com.videogo.widget.pulltorefresh.PullToRefreshBase.Orientation;
 import com.videogo.widget.pulltorefresh.PullToRefreshListView;
 
+import org.xutils.common.Callback;
+import org.xutils.http.RequestParams;
+import org.xutils.x;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -90,7 +101,6 @@ import static com.videogo.base.EzvizApplication.getOpenSDK;
 
 /**
  * 摄像头列表
- *
  * @author xiaxingsuo
  * @data 2014-7-14
  */
@@ -102,7 +112,7 @@ public class EZCameraListActivity extends Activity implements OnClickListener, S
      * 删除设备
      */
     private final static int SHOW_DIALOG_DEL_DEVICE = 1;
-
+    private Gson gson;
     //private EzvizAPI mEzvizAPI = null;
     private BroadcastReceiver mReceiver = null;
 
@@ -130,7 +140,9 @@ public class EZCameraListActivity extends Activity implements OnClickListener, S
     private final static int LOAD_MY_DEVICE = 0;
     private final static int LOAD_SHARE_DEVICE = 1;
     private int mLoadType = LOAD_MY_DEVICE;
-
+    private List<chosesUserBean.deviceInfo> InfoList;
+    private SharedPreferences sharedPrefs;
+    private String UserId;
     private Handler mHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
@@ -190,8 +202,13 @@ public class EZCameraListActivity extends Activity implements OnClickListener, S
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.cameralist_page);
-        initData();
+        sharedPrefs = getSharedPreferences("EZShare", Context.MODE_PRIVATE);
+        gson=new GsonBuilder().registerTypeAdapterFactory(new NullStringToEmptyAdapterFactory()).create();
+//        gson=new Gson();
+        UserId=sharedPrefs.getString("UserId","USER_ACCOUNT");
+        getMonitor(UserId);
         initView();
+        initData();
         Utils.clearAllNotification(this);
     }
 
@@ -466,6 +483,7 @@ public class EZCameraListActivity extends Activity implements OnClickListener, S
 
         @Override
         protected void onPostExecute(List<EZDeviceInfo> result) {
+            List<EZDeviceInfo> choseresult =new ArrayList<EZDeviceInfo>() ;
             super.onPostExecute(result);
             mListView.onRefreshComplete();
             if (EZCameraListActivity.this.isFinishing()) {
@@ -492,10 +510,18 @@ public class EZCameraListActivity extends Activity implements OnClickListener, S
                     mListView.setFooterRefreshEnabled(true);
                     mListView.getRefreshableView().removeFooterView(mNoMoreView);
                 }
-                addCameraList(result);
-                mAdapter.notifyDataSetChanged();
-            }
+                for (int i = 0; i < InfoList.size(); i++) {
 
+                    for (int j = 0; j < result.size(); j++)
+                        if (InfoList.get(i).getDeviceSerial().equals(result.get(j).getDeviceSerial())) {
+                            result.get(j).setDeviceName(InfoList.get(i).getDeviceName());
+                            choseresult.add(result.get(j));
+                        }
+                }
+
+            addCameraList(choseresult);
+            mAdapter.notifyDataSetChanged();
+            }
             if (mErrorCode != 0) {
                 onError(mErrorCode);
             }
@@ -757,5 +783,56 @@ public class EZCameraListActivity extends Activity implements OnClickListener, S
                 }
             }
         }).start();
+    }
+
+
+    private void getMonitor(String UserId) {
+//        RequestParams requestparams = new RequestParams(URL);
+        RequestParams requestparams = new RequestParams("http://182.92.173.223:8082/api/Monitor");
+//        requestparams.addParameter("UserName", usernameEtText.toString());
+//        requestparams.addParameter("Password",passwordEtText.toString());
+//        requestparams.addParameter("Md5", "0");passwordEtText.toString()
+//        requestparams.addParameter("LoginTime","0");
+        userIdBean bean = new userIdBean(UserId);
+        String RequestStr = gson.toJson(bean);
+        Log.i(TAG,"Login_tmy_RequestStr:"+RequestStr);
+//        requestparams.addParameter("aaa", RequestStr);
+        requestparams.setAsJsonContent(true);
+        requestparams.setBodyContent(RequestStr);
+//        requestparams.setCharset("UTF-8");
+        Log.i(TAG,"Login_tmy_requestparams:"+requestparams);
+        x.http().post(requestparams, new Callback.CommonCallback<String>() {
+            @Override
+            public void onSuccess(String result) {
+                Log.i(TAG,"Login_tmy_result:"+result);
+                java.lang.reflect.Type  Type =new TypeToken<chosesUserBean>() {}.getType();
+                chosesUserBean  relt = gson.fromJson(result,Type);
+                InfoList=relt.getData();
+                for(int i=0;i<InfoList.size();i++) {
+                    chosesUserBean.deviceInfo deviceInfos=InfoList.get(i);
+                    Log.i(TAG," deviceInfos.getDeviceName()"+i+  deviceInfos.getDeviceName());
+                    Log.i(TAG," deviceInfos.getDeviceSerial()+i"+  deviceInfos.getDeviceSerial());
+                    if (InfoList.get(i).getDeviceSerial().isEmpty()||InfoList.get(i).getDeviceSerial().equals("")||InfoList.get(i).getDeviceSerial().equals(null)) {
+                        InfoList.remove(i);
+                        i=i-1;
+                    }
+                }
+            }
+
+            @Override
+            public void onError(Throwable ex, boolean isOnCallback) {
+
+            }
+
+            @Override
+            public void onCancelled(CancelledException cex) {
+
+            }
+
+            @Override
+            public void onFinished() {
+
+            }
+        });
     }
 }

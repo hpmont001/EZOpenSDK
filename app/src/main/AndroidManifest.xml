@@ -42,9 +42,10 @@
     <application
         android:name="com.videogo.base.EzvizApplication"
         android:allowBackup="true"
-        android:icon="@mipmap/videogo_icon"
+        android:icon="@mipmap/ic_logo"
         android:label="@string/app_name"
         android:supportsRtl="true"
+
         android:theme="@android:style/Theme.Light.NoTitleBar">
         <activity
             android:name="com.videogo.MainActivity"
